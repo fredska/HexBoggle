@@ -22,10 +22,13 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
+import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.Ray;
 import com.badlogic.gdx.physics.box2d.Shape;
+import com.fska.hexboggle.dictionary.Dictionary;
 import com.fska.hexboggle.grid.HexTile;
 
 public class HexBoggle extends ApplicationAdapter {
@@ -43,6 +46,8 @@ public class HexBoggle extends ApplicationAdapter {
 	ShapeRenderer debugRenderer;
 	
 	ShapeRenderer lineRenderer;
+	
+	Dictionary dictionary;
 	@Override
 	public void create () {
 		batch = new SpriteBatch();
@@ -101,6 +106,11 @@ public class HexBoggle extends ApplicationAdapter {
 		font.setScale(2);
 		
 		currentPath = new ArrayList<HexTile>();
+		prevCamPosition = new Vector2(camera.position.x, camera.position.y);
+		newCamPosition = prevCamPosition;
+		
+		dictionary = new Dictionary();
+		
 	}
 
 	@Override
@@ -113,7 +123,11 @@ public class HexBoggle extends ApplicationAdapter {
 	}
 
 	List<HexTile> currentPath;
-	
+	String currentWord = "";
+	float cameraLerpTimer = 0.01f;
+	float cameraMovementTime = 2f;
+	Vector2 newCamPosition;
+	Vector2 prevCamPosition;
 	@Override
 	public void render () {
 		Gdx.gl.glClearColor(0,0,0, 1);
@@ -121,41 +135,63 @@ public class HexBoggle extends ApplicationAdapter {
 		camera.update();
 		polyBatch.setProjectionMatrix(camera.combined);
 		
+	    if(!Gdx.input.isButtonPressed(Buttons.LEFT)){
+	    	if(!currentWord.isEmpty()){
+	    		System.out.println("Word Created: " + currentWord);
+	    		if(dictionary.lookup(currentWord)){
+	    			for(HexTile tile : currentPath)
+	    				tile.setUsed();
+	    			System.out.println("Dictionary Found the word " + currentWord + "!!");
+	    		} else {
+	    			System.out.println("Dictionary does not have the word " + currentWord + " in itself.");
+	    		}
+	    	}
+	    	for(HexTile tile : currentPath){
+	    		tile.setOnCurrentPath(false);
+	    	}
+	    	currentPath = new ArrayList<HexTile>();
+	    	camera.zoom = 1;
+	    	currentWord = "";
+	    }
+		
 		//Get accurate mouse coordinates base on the camera's position
 		Vector3 worldCoordinates = new Vector3(Gdx.input.getX(), Gdx.input.getY(),0);
 		
 		camera.unproject(worldCoordinates);
     	Vector2 mouseRay = new Vector2(worldCoordinates.x, worldCoordinates.y);
-    	
-//    	mouseRay.add(Gdx.graphics.getWidth() - Gdx.input.getX(), Gdx.input.getY());
 		
-		
-		polyBatch.begin();
-	    
 	    for(HexTile tile : myTiles){
 	    	if(mouseRay.dst(tile.getCenter()) < (tile.getRadius())){
 	    		tile.setSelected(true);
-	    		if(Gdx.input.isButtonPressed(Buttons.LEFT) && !currentPath.contains(tile)){
+	    		if(Gdx.input.isButtonPressed(Buttons.LEFT) && !currentPath.contains(tile) && !tile.isUsed()){
 	    			currentPath.add(tile);
-	    			if(currentPath.size() > 5)
-	    				camera.zoom += 0.1f;
+	    			tile.setOnCurrentPath(true);
+	    			prevCamPosition.set(camera.position.x, camera.position.y);
+	    			newCamPosition = tile.getCenter();
+	    			cameraLerpTimer = 0.01f;
+	    			currentWord += tile.getLetter();
 	    		}
 	    			
-	    	} else
+	    	} else {
 	    		tile.setSelected(false);
+	    	}
+	    }
+		polyBatch.begin(); 
+	    for(HexTile tile : myTiles){
 	    	tile.draw(polyBatch);
 	    	font.draw(polyBatch, Character.toString(tile.getLetter()), tile.getCenter().x, tile.getCenter().y);
 	    	
 	    }
 	    polyBatch.end();
 
-//	    debugRenderer.setProjectionMatrix(camera.combined);
-//	    debugRenderer.begin(ShapeType.Line);
-//	    debugRenderer.setColor(Color.RED);
-//	    for(HexTile tile : myTiles){
-//	    	debugRenderer.circle(tile.getCenter().x, tile.getCenter().y, tile.getRadius());
-//	    }
-//	    debugRenderer.end();
+	   //Move the camera via lerp to the next position (if any)
+	    if(cameraLerpTimer < cameraMovementTime){
+	    	float lerpProgress = cameraLerpTimer / cameraMovementTime;
+	    	
+		    camera.position.x = prevCamPosition.cpy().interpolate(newCamPosition, lerpProgress, Interpolation.exp10Out).x;
+		    camera.position.y = prevCamPosition.cpy().interpolate(newCamPosition, lerpProgress, Interpolation.exp10Out).y;
+	    }
+	    cameraLerpTimer += Gdx.graphics.getDeltaTime();
 	    
 	    lineRenderer.setProjectionMatrix(camera.combined);
 	    lineRenderer.begin(ShapeType.Line);
@@ -168,15 +204,7 @@ public class HexBoggle extends ApplicationAdapter {
 	    
 	    spriteBatch.setProjectionMatrix(camera.combined);
 	    spriteBatch.begin();
-	    spriteBatch.end();
-	    
-	    if(Gdx.input.isButtonPressed(Buttons.LEFT)){
-	    	//camera.translate(-Gdx.input.getDeltaX(), Gdx.input.getDeltaY());
-	    } else {
-	    	currentPath = new ArrayList<HexTile>();
-	    	camera.zoom = 1;
-	    }
-	    
+	    spriteBatch.end();	    
 	    
 	}
 }

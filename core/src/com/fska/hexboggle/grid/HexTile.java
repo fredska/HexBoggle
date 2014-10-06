@@ -19,6 +19,8 @@ public class HexTile {
 	private float radius;
 	private boolean isSelected;
 	private boolean isStateChange;
+	private boolean used;
+	private boolean onCurrentPath;
 	Texture textureSolid;
 	
 	PolygonSprite polySprite;
@@ -29,7 +31,7 @@ public class HexTile {
 	public HexTile(Vector2 position, float radius){
 		this.position = position;
 		this.radius = radius;
-		letter = (char)(MathUtils.random(26) + 'A');
+		letter = (char)(MathUtils.random(25) + 'A');
 	}
 	
 	public HexTile(Vector2 position, float radius, char letter){
@@ -48,7 +50,11 @@ public class HexTile {
 			isStateChange = false;
 			//Creating the color filling (but textures would work the same way)
 			Pixmap pix = new Pixmap(1,1,Pixmap.Format.RGBA8888);
-			if(isSelected)
+			if(used)
+				pix.setColor(Color.BLUE);
+			else if(onCurrentPath)
+				pix.setColor(Color.NAVY);
+			else if(isSelected)
 				pix.setColor(Color.YELLOW);
 			else 
 				pix.setColor(Color.DARK_GRAY);
@@ -85,8 +91,10 @@ public class HexTile {
 	}
 	
 	public void draw(PolygonSpriteBatch batch){
-		if(polySprite == null || isStateChange)
+		if(polySprite == null || isStateChange){
+			dispose();
 			drawPolySprite();
+		}
 		polySprite.draw(batch);
 	}
 	
@@ -101,7 +109,8 @@ public class HexTile {
 	}
 	
 	public void dispose(){
-		textureSolid.dispose();
+		if(textureSolid != null)
+			textureSolid.dispose();
 	}
 	
 	public void setSelected(boolean selected){
@@ -120,5 +129,23 @@ public class HexTile {
 	
 	public char getLetter(){
 		return this.letter;
+	}
+	
+	public void setUsed(){
+		this.used = true;
+		this.isStateChange = true;
+	}
+	
+	public boolean isUsed(){
+		return this.used;
+	}
+	
+	public void setOnCurrentPath(boolean isTrue){
+		this.isStateChange = true;
+		this.onCurrentPath = isTrue;
+	}
+	
+	public boolean isOnCurrentPath(){
+		return this.onCurrentPath;
 	}
 }
